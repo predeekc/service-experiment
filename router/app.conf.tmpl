@@ -1,0 +1,43 @@
+upstream auth_servers {
+{{range getvs "/servers/auth/*"}}
+    server {{.}};
+{{end}}
+}
+
+upstream web_servers {
+{{range getvs "/servers/web/*"}}
+    server {{.}};
+{{end}}
+}
+
+server {
+	listen			443 ssl;
+	server_name		www.sample.local;
+
+	ssl_certificate				/etc/nginx/sample.local.cert;
+	ssl_certificate_key 		/etc/nginx/sample.local.key;
+	ssl_session_cache 			shared:SSL:1m;
+	ssl_session_timeout			5m;
+	ssl_ciphers					HIGH:!aNULL:!MD5;
+	ssl_prefer_server_ciphers	on;
+
+	location / {
+		proxy_pass http://web_servers;
+	}
+}
+
+server {
+	listen			443 ssl;
+	server_name		auth.sample.local;
+
+	ssl_certificate				/etc/nginx/sample.local.cert;
+	ssl_certificate_key 		/etc/nginx/sample.local.key;
+	ssl_session_cache 			shared:SSL:1m;
+	ssl_session_timeout			5m;
+	ssl_ciphers					HIGH:!aNULL:!MD5;
+	ssl_prefer_server_ciphers	on;
+
+	location / {
+		proxy_pass http://auth_servers;
+	}
+}

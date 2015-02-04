@@ -1,0 +1,7 @@
+[template]
+src = "app.conf.tmpl"
+dest = "/etc/nginx/conf.d/app.conf"
+keys = [
+    "/servers/web/01",
+    "/servers/auth/01",
+]

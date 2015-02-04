@@ -1,0 +1,17 @@
+web:
+  build: ./web
+  links:
+    - "auth:auth.sample.local"
+auth:
+  build: ./auth-server
+router:
+  build: ./router
+  ports:
+    - "80:80"
+    - "443:443"
+  links:
+    - "web:web_01"
+    - "auth:auth_01"
+  environment:
+    - SERVERS_WEB_01=web_01:3000
+    - SERVERS_AUTH_01=auth_01:4000

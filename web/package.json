@@ -1,0 +1,12 @@
+{
+  "name": "auth-client",
+  "description": "OAuth2 Client App",
+  "version": "1.0.0",
+  "dependencies": {
+    "express": "^4.11.2",
+    "express-session": "^1.10.2",
+    "passport": "^0.2.1",
+    "passport-http-bearer": "^1.0.1",
+    "passport-oauth2": "^1.1.2"
+  }
+}
