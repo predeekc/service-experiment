@@ -7,6 +7,7 @@ ADD *.js /var/www/
 ADD db/* /var/www/db/
 ADD views/* /var/www/views/
 
+ENV PORT 80
 EXPOSE 80
 
 WORKDIR /var/www

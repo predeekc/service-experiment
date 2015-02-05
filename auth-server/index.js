@@ -29,4 +29,6 @@ app.post('/oauth/token', oauth2.token);
 
 app.get('/api/userinfo', user.info);
 
-app.listen(80);
+var port = process.env.PORT || 4000;
+console.log("start on port " + port);
+app.listen(port);

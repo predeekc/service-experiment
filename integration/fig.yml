@@ -1,0 +1,21 @@
+web:
+  build: ../web
+  links:
+    - "auth:auth.sample.local"
+  environment:
+    PORT: 80
+    AUTH_URL: "https://auth.sample.local/dialog/authorize"
+    TOKEN_URL: "http://auth.sample.local/oauth/token"
+    CALLBACK_URL: "https://www.sample.local/auth/login/callback"    
+auth:
+  build: ../auth-server
+  environment:
+    PORT: 80
+router:
+  build: ../router
+  ports:
+    - "80:80"
+    - "443:443"
+  links:
+    - "web:servers_web_01"
+    - "auth:servers_auth_01"

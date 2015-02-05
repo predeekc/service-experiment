@@ -1,17 +1,14 @@
 web:
   build: ./web
-  links:
-    - "auth:auth.sample.local"
+  net: "host"
+  environment:
+    PORT: 3000
 auth:
   build: ./auth-server
-router:
-  build: ./router
-  ports:
-    - "80:80"
-    - "443:443"
-  links:
-    - "web:servers_web_01"
-    - "auth:servers_auth_01"
+  net: "host"
   environment:
-    - SERVERS_WEBPORT=80
-    - SERVERS_AUTHPORT=80
+    PORT: 4000
+sessionstore:
+  image: redis
+  net: "host"
+

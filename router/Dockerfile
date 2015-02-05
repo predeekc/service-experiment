@@ -14,4 +14,6 @@ ADD sample.local.key /etc/nginx/
 ADD start-nginx.sh /usr/local/bin/start-nginx
 RUN chmod +x /usr/local/bin/start-nginx
 
+RUN echo "daemon off;" >> /etc/nginx/nginx.conf
+
 CMD ["/usr/local/bin/start-nginx"]

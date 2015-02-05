@@ -5,6 +5,7 @@ ADD package.json /var/www/package.json
 RUN cd /var/www; npm install --production
 ADD *.js /var/www/
 
+ENV PORT 80
 EXPOSE 80
 
 WORKDIR /var/www

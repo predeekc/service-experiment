@@ -5,6 +5,11 @@ var express = require('express'),
 
 var app = express();
 
+var port = process.env.PORT || 3000,
+    authorizationURL = process.env.AUTH_URL || "http://localhost:4000/dialog/authorize",
+    tokenURL = process.env.TOKEN_URL || "http://localhost:4000/oauth/token",
+    callbackURL = process.env.CALLBACK_URL || "http://localhost:3000/auth/login/callback";
+
 app.use(session({ secret: 'keyboard cat' }));
 app.use(passport.initialize());
 app.use(passport.session());
@@ -18,11 +23,11 @@ passport.deserializeUser(function(user, done) {
 });
 
 var githubStrategy = new OAuth2Strategy({
-    authorizationURL: 'https://auth.sample.local/dialog/authorize',
-    tokenURL: 'http://auth.sample.local/oauth/token',
+    authorizationURL: authorizationURL,
+    tokenURL: tokenURL,
     clientID: "abc123",
     clientSecret: "ssh-secret",
-    callbackURL: "https://www.sample.local/auth/login/callback"
+    callbackURL: callbackURL
   },
   function(accessToken, refreshToken, profile, done) {    
   	console.log(accessToken);
@@ -60,4 +65,6 @@ app.get('/auth/login/callback',
     res.redirect('/');
   });
 
-app.listen(80);
+
+console.log("start on port " + port);
+app.listen(port);
