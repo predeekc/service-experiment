@@ -6,7 +6,8 @@ web:
     PORT: 80
     AUTH_URL: "https://auth.sample.local/dialog/authorize"
     TOKEN_URL: "http://auth.sample.local/oauth/token"
-    CALLBACK_URL: "https://www.sample.local/auth/login/callback"    
+    CALLBACK_URL: "https://www.sample.local/auth/login/callback"
+    PROFILE_URL: "http://auth.sample.local/api/userinfo"
 auth:
   build: ../auth-server
   environment:

@@ -1,6 +1,7 @@
 var express = require('express'),
 	passport = require("passport"),
 	session = require("express-session"),
+  request = require("request"),
 	OAuth2Strategy = require("passport-oauth2");
 
 var app = express();
@@ -8,7 +9,8 @@ var app = express();
 var port = process.env.PORT || 3000,
     authorizationURL = process.env.AUTH_URL || "http://localhost:4000/dialog/authorize",
     tokenURL = process.env.TOKEN_URL || "http://localhost:4000/oauth/token",
-    callbackURL = process.env.CALLBACK_URL || "http://localhost:3000/auth/login/callback";
+    callbackURL = process.env.CALLBACK_URL || "http://localhost:3000/auth/login/callback",
+    profileURL = process.env.PROFILE_URL || "http://localhost:4000/api/userinfo";
 
 app.use(session({ secret: 'keyboard cat' }));
 app.use(passport.initialize());
@@ -30,8 +32,16 @@ var githubStrategy = new OAuth2Strategy({
     callbackURL: callbackURL
   },
   function(accessToken, refreshToken, profile, done) {    
-  	console.log(accessToken);
-    return done(null, { token: accessToken });    
+    request.get(profileURL, {
+      'auth': {
+        'bearer': accessToken
+      }
+    }, function (err, response, body) {
+      console.log(body);
+      body = JSON.parse(body);
+      console.log(body.name);
+      return done(null, { id: body.user_id, name: body.name });    
+    });
   }
 );
 
@@ -39,7 +49,7 @@ passport.use(githubStrategy);
 
 app.get("/", function (req, res) {
   if (req.isAuthenticated()) {
-    res.send("<html><body><a href='/secret'>Secret Page</a></body></html>");
+    res.send("<html><body><a href='/secret'>Secret Page</a><a href='/auth/logout'>Logout</a></body></html>");
   } else {
     res.send("<html><body><a href='/auth/login'>Login</a></body></html>");
   }
@@ -48,11 +58,16 @@ app.get("/", function (req, res) {
 app.get('/secret', function (req, res) {
   // Will require a valid access_token
   if (req.isAuthenticated()) {
-  	res.send('Secret area: ' + req.user.token);	
+  	res.send('Secret area: ' + req.user.name);	
   } else {
   	res.send('No access');	
   }
   
+});
+
+app.get('/auth/logout', function(req, res){
+  req.logout();
+  res.redirect('/');
 });
 
 app.get('/auth/login',
