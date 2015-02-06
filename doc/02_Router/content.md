@@ -1,11 +1,145 @@
 # Router
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis non libero feugiat eros bibendum mattis. Quisque sodales dictum sem non molestie. Mauris sed elit ut ligula sagittis gravida. Phasellus porttitor fringilla semper. Quisque metus augue, vestibulum eu dolor sed, sagittis porta massa. Aliquam pretium ipsum sed justo scelerisque ultrices. Phasellus vel enim nec augue viverra auctor ac nec massa. Nunc fermentum rhoncus sem eget fringilla. Vivamus sollicitudin elit dapibus libero mollis, vitae tristique justo finibus. In ante tellus, condimentum ut maximus sed, vulputate vel metus. Proin felis augue, rhoncus vitae turpis ut, lobortis ullamcorper est. Pellentesque fringilla sapien sit amet placerat bibendum.
+The router container is implemented using nginx to provide an HTTPS endpoint ad well as perform basic routing.  Any requests with a host name of www.sample.local are routed to a set of web container instances and requests with auth.sample.local are routed to a set of OAuth2 server containers. The basic nginx config below handles both of these needs.
 
-Praesent at tempor mi, vitae fringilla magna. Maecenas tempor lorem sapien, quis interdum dui aliquam vel. Suspendisse vel convallis massa, ac vulputate felis. Phasellus ultrices consectetur nisi in facilisis. Ut viverra enim at velit lobortis, a imperdiet odio vehicula. Curabitur nec accumsan erat, ultrices mollis neque. Nam nisl ipsum, volutpat at ligula a, sollicitudin laoreet magna. Integer venenatis aliquet augue nec commodo. Suspendisse dapibus mollis nulla nec pellentesque. Ut sit amet nulla accumsan, tempus ipsum nec, mollis est. Morbi neque magna, dapibus eget dolor vitae, finibus suscipit erat. Praesent arcu erat, interdum in commodo eu, congue at neque. Mauris dignissim tristique orci, et porta elit mollis id. Praesent dui ligula, accumsan a ligula et, lacinia luctus neque. Proin lobortis pulvinar lacus vel ullamcorper. Sed quis enim lobortis, cursus turpis eu, pulvinar leo.
+```
+upstream auth_servers {
+    server 172.17.0.3:80;
+}
 
-Praesent vitae fringilla ligula. Proin sodales enim quis nunc maximus, ac imperdiet odio accumsan. Integer at arcu urna. Fusce nisi eros, tincidunt eu vehicula et, hendrerit et leo. Aenean sed vehicula lorem. Maecenas porttitor quam at purus fringilla placerat. Fusce finibus faucibus velit, id congue orci sagittis ac. Vivamus dictum elementum ipsum vitae gravida. Sed odio enim, viverra nec aliquet eget, efficitur non quam. Donec eleifend bibendum elit, fermentum condimentum ligula iaculis ac.
+upstream web_servers {
+    server 172.17.0.7:80;
+    server 172.17.0.6:80;
+}
 
-Proin non tortor nulla. Sed rutrum fringilla diam at interdum. Nunc quis tristique magna. Mauris commodo scelerisque purus ut gravida. Nunc euismod non erat eget dignissim. Praesent quis consequat odio. Nam varius diam feugiat mi ornare tincidunt at at nibh. Aliquam dictum arcu eget dolor luctus, sit amet mattis nulla molestie. Suspendisse sed efficitur justo. Donec suscipit ex non enim tristique faucibus. Integer blandit efficitur ante, ac iaculis urna faucibus eget. Proin metus elit, lobortis sit amet consequat ac, egestas et ligula. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Nullam pulvinar sapien in eleifend porttitor. Pellentesque vitae laoreet nibh. Vivamus nisi diam, tincidunt id bibendum eget, mollis ac tortor.
+server {
+    listen          443 ssl;
+    server_name     www.sample.local;
 
-Aenean nec eros maximus, sodales tellus nec, pellentesque nisl. Maecenas consectetur neque eget nisi suscipit dapibus. Ut faucibus sapien mauris, vitae suscipit sem mollis vitae. Nunc facilisis porta pharetra. Quisque lobortis finibus aliquet. Ut erat felis, venenatis nec nisi id, bibendum fermentum felis. Vivamus maximus, turpis vel commodo dapibus, nunc diam elementum enim, vel egestas erat lorem non ex. Ut pulvinar nibh a erat bibendum, in sagittis lacus porta. Maecenas lacinia erat mi, quis pretium lectus tincidunt vitae. Aliquam posuere ultricies quam sed pharetra. Quisque id risus erat. Duis quis velit sed lorem laoreet suscipit. Pellentesque convallis elit dolor, a condimentum lorem rutrum a. Praesent at iaculis ligula, ut aliquet mauris. Ut sed purus vel leo elementum egestas. Nam in dui metus.
+    ssl_certificate             /etc/nginx/sample.local.cert;
+    ssl_certificate_key         /etc/nginx/sample.local.key;
+    ssl_session_cache           shared:SSL:1m;
+    ssl_session_timeout         5m;
+    ssl_ciphers                 HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers   on;
+
+    location / {
+        proxy_pass http://web_servers;
+    }
+}
+
+server {
+    listen          443 ssl;
+    server_name     auth.sample.local;
+
+    ssl_certificate             /etc/nginx/sample.local.cert;
+    ssl_certificate_key         /etc/nginx/sample.local.key;
+    ssl_session_cache           shared:SSL:1m;
+    ssl_session_timeout         5m;
+    ssl_ciphers                 HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers   on;
+
+    location / {
+        proxy_pass http://auth_servers;
+    }
+}
+```
+
+This config file works fine as long as the IP addresses of the auth and web servers never change.  Unfortunately Docker assigns a new IP to the containers every time they are recreated, so the nginx configuration needs to be updated when the router starts.  Dynamic addition of service instances is not currently handles in this sample, so pulling the server addresses from environment variables is acceptable.  In a more dynamic system, the server registration would be stored in an external location and as servers are added, the nginx configuration would be updated.
+
+## Dynamic .conf file management with confd
+
+In this sample system [confd](https://github.com/kelseyhightower/confd) was used to handle dynamic creation of the nginx .conf files.  This tool reads from multiple data sources including environment variables and exposes a hierarchical set of values to a templating engine.  When the tool is invoked, the values are merged with the template to create new .conf files.
+
+The links between the router and web containers lead to a set of environment variables being passed to the router container.  A subset of those values are shown below and they define the IP address and port of each instance of the web and auth containers.
+
+```
+WEB_4_PORT_80_TCP_PORT=80
+WEB_4_PORT_80_TCP_ADDR=172.17.0.7
+WEB_5_PORT_80_TCP_PORT=80
+WEB_5_PORT_80_TCP_ADDR=172.17.0.6
+AUTH_1_PORT_80_TCP_PORT=80
+AUTH_1_PORT_80_TCP_ADDR=172.17.0.3
+```
+
+Confd uses a .toml file to define the transformation needed.  This file defines the template, destination location, and a list of keys to retrieve from the source (in our case the Environment variables)
+
+```
+[template]
+src = "app.conf.tmpl"
+dest = "/etc/nginx/conf.d/app.conf"
+keys = [
+    "/web",
+    "/auth",
+]
+```
+
+In our example, the fact that the /web and /auth are listed as keys causes confd to parse any environment variables begining with WEB_ or AUTH_ into a tree representation that can be used by the template.  Once the data source is parsed, the template is applied and the .conf file is created.
+
+```
+upstream auth_servers {
+{{range lsdir "/auth"}}
+    {{ $addr := printf "/auth/%s/port/80/tcp/addr" . }}
+    {{ $port := printf "/auth/%s/port/80/tcp/port" . }}
+    {{ if exists $addr }}
+        server {{getv $addr}}:{{getv $port}};
+    {{end}}
+{{end}}
+}
+
+upstream web_servers {
+{{range lsdir "/web"}}  
+    {{ $addr := printf "/web/%s/port/80/tcp/addr" . }}
+    {{ $port := printf "/web/%s/port/80/tcp/port" . }}
+    {{ if exists $addr }}
+        server {{getv $addr}}:{{getv $port}};
+    {{end}}
+{{end}}
+}
+
+... remainder excluded for clarity ...
+```
+
+The example above uses the *lsdir* command to get a list of child keys and then *range* to execute the embedded template once per key.  The next two lines use the *printf* command to create the $addr and $port variables containing the search path based on the current child key in the list.  Finally as long as the $addr key exists, render the **server** line to the output file using the values held in the $addr and $port keys.  For more information on the templating engine, see the [confd documentation](https://github.com/kelseyhightower/confd/blob/master/docs/templates.md).
+
+**I'd like to simplify this template.  I didn't see a good way to do this without generating the key variables, but it seems there should be a way to do it.  I also had to use the check for the key's existance since there are some environment variables that start with WEB_ that don't follow the pattern expected above.  If this were moved to a shared store like [etcd](https://github.com/coreos/etcd) the key structure would be more tightly controlled and this wouldn't be a problem.**
+
+## Router Dockerfile
+
+Due to the use of confd to generate the nginx .conf file, the setup of this container is a little more complicated than the other containers.  It's based on the official nginx container on the [Docker Hub](https://hub.docker.com/account/signup/) and modified to inject our custom .conf file.
+
+```
+FROM nginx
+
+# install confd
+ADD confd-0.7.1-linux-amd64 /usr/local/bin/confd
+RUN chmod +x /usr/local/bin/confd
+
+# copy the configuration and certificate files
+ADD app.toml /etc/confd/conf.d/
+ADD app.conf.tmpl /etc/confd/templates/
+ADD sample.local.cert /etc/nginx/
+ADD sample.local.key /etc/nginx/
+
+# make sure nginx runs in the foreground
+RUN echo "daemon off;" >> /etc/nginx/nginx.conf
+
+# copy and prepare the start bash script
+ADD start-nginx.sh /usr/local/bin/start-nginx
+RUN chmod +x /usr/local/bin/start-nginx
+
+CMD ["/usr/local/bin/start-nginx"]
+```
+
+The first section installs confd and makes sure it's executable.  Next the confd .toml and .tmpl files are copied to the container along with the certificate files used for the HTTPS endpoint.  Next a command is added to the nginx.conf file force nginx to run in the foreground.  If it didn't, the container would terminate as soon as the nginx process was started.  Finally the start-nginx BASH script is copied to the container and set as the startup command.  This BASH script will run confd then start nginx.
+
+```BASH
+#!/bin/bash
+
+echo "[nginx] confd is updating conf files based on environment variables..."
+confd -onetime -backend env
+
+# Start the Nginx service using the generated config
+echo "[nginx] starting nginx service..."
+/usr/sbin/nginx -c /etc/nginx/nginx.conf
+```
