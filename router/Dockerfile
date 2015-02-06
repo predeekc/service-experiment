@@ -1,6 +1,6 @@
 FROM nginx
 
-ADD confd-0.6.3-linux-amd64 /usr/local/bin/confd
+ADD confd-0.7.1-linux-amd64 /usr/local/bin/confd
 RUN chmod +x /usr/local/bin/confd
 
 #RUN echo "daemon off;" >> /etc/nginx/nginx.conf

@@ -10,9 +10,19 @@ var port = process.env.PORT || 3000,
     authorizationURL = process.env.AUTH_URL || "http://localhost:4000/dialog/authorize",
     tokenURL = process.env.TOKEN_URL || "http://localhost:4000/oauth/token",
     callbackURL = process.env.CALLBACK_URL || "http://localhost:3000/auth/login/callback",
-    profileURL = process.env.PROFILE_URL || "http://localhost:4000/api/userinfo";
+    profileURL = process.env.PROFILE_URL || "http://localhost:4000/api/userinfo",
+    sessionStoreAddr = process.env.SESSIONSTORE_PORT_6379_TCP_ADDR || "127.0.0.1",
+    sessionStorePort = process.env.SESSIONSTORE_PORT_6379_TCP_POR || "6379";
 
-app.use(session({ secret: 'keyboard cat' }));
+var RedisStore = require('connect-redis')(session);
+app.use(session({ 
+  store: new RedisStore({
+    prefix: "web-sess:",
+    host: sessionStoreAddr,
+    port: sessionStorePort
+  }),
+  saveUnititialized: false,
+  secret: 'keyboard cat' }));
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -48,6 +58,7 @@ var githubStrategy = new OAuth2Strategy({
 passport.use(githubStrategy);
 
 app.get("/", function (req, res) {
+  console.log("GET - /");
   if (req.isAuthenticated()) {
     res.send("<html><body><a href='/secret'>Secret Page</a><a href='/auth/logout'>Logout</a></body></html>");
   } else {
@@ -67,6 +78,7 @@ app.get('/secret', function (req, res) {
 
 app.get('/auth/logout', function(req, res){
   req.logout();
+  req.session.destroy();
   res.redirect('/');
 });
 

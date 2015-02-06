@@ -1,5 +1,7 @@
 #!/bin/bash
 
+env
+
 echo "[nginx] confd is updating conf files based on environment variables..."
 confd -onetime -backend env
 

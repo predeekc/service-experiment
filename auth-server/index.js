@@ -5,13 +5,26 @@ var express = require('express'),
 	user = require('./user'),
 	session = require("express-session");
 
+var sessionStoreAddr = process.env.SESSIONSTORE_PORT_6379_TCP_ADDR || "127.0.0.1",
+    sessionStorePort = process.env.SESSIONSTORE_PORT_6379_TCP_POR || "6379";
+
 var app = express();
 
 app.set("views", "./views");
 app.set('view engine', 'ejs');
 app.use(require("cookie-parser")());
 app.use(require("body-parser")());
-app.use(session({ secret: 'keyboard cat' }));
+
+var RedisStore = require('connect-redis')(session);
+app.use(session({ 
+  store: new RedisStore({
+    prefix: "auth-sess:",
+    host: sessionStoreAddr,
+    port: sessionStorePort
+  }),
+  saveUnititialized: false,
+  secret: 'keyboard cat' }));
+
 app.use(passport.initialize());
 app.use(passport.session());
 

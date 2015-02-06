@@ -1,16 +1,20 @@
 upstream auth_servers {
-{{range lsdir "/servers/auth"}}
-    {{ $addr := printf "/servers/auth/%s/port/80/tcp/addr" . }}
-    {{ $port := printf "/servers/auth/%s/port/80/tcp/port" . }}
-    server {{getv $addr}}:{{getv $port}};
+{{range lsdir "/auth"}}
+    {{ $addr := printf "/auth/%s/port/80/tcp/addr" . }}
+    {{ $port := printf "/auth/%s/port/80/tcp/port" . }}
+    {{ if exists $addr }}
+    	server {{getv $addr}}:{{getv $port}};
+    {{end}}
 {{end}}
 }
 
 upstream web_servers {
-{{range lsdir "/servers/web"}}	
-    {{ $addr := printf "/servers/web/%s/port/80/tcp/addr" . }}
-    {{ $port := printf "/servers/web/%s/port/80/tcp/port" . }}
-    server {{getv $addr}}:{{getv $port}};
+{{range lsdir "/web"}}	
+    {{ $addr := printf "/web/%s/port/80/tcp/addr" . }}
+    {{ $port := printf "/web/%s/port/80/tcp/port" . }}
+    {{ if exists $addr }}
+	    server {{getv $addr}}:{{getv $port}};
+    {{end}}
 {{end}}
 }
 

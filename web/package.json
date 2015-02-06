@@ -3,6 +3,7 @@
   "description": "OAuth2 Client App",
   "version": "1.0.0",
   "dependencies": {
+    "connect-redis": "^2.2.0",
     "express": "^4.11.2",
     "express-session": "^1.10.2",
     "passport": "^0.2.1",
