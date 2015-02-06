@@ -21,5 +21,3 @@ To build the book, run `make` and two files **service-experiment.epub** and **se
 * [Container Layout](01_ContainerLayout/content.md)
 * [Router](02_Router/content.md)
 * [Developing in Isolation](03_DevelopingInIsolation/content.md)
-
-https://github.com/jgm/pandoc/releases/download/1.13.2/pandoc-1.13.2-1-amd64.deb
