@@ -3,10 +3,10 @@
 BOOK_FILE_NAME = service-experiment
 
 EPUB_BUILDER = pandoc
-EPUB_BUILDER_FLAGS = -S
+EPUB_BUILDER_FLAGS = -f markdown -t epub -smart
 MOBI_BUILDER = kindlegen
 
-MD_FILES = $(sort $(wildcard */*.md))
+MD_FILES = $(sort $(wildcard ??_*.md))
 
 default: $(BOOK_FILE_NAME).epub $(BOOK_FILE_NAME).mobi
 

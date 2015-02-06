@@ -6,7 +6,7 @@ Login is handled using the OAuth2 protocol.  When a request is made to the websi
 
 Since there is the possibility of multiple website or OAuth2 server instances, a shared session store is needed.  In this sample Redis is used in it's own container.
 
-![Container Relationships](containers.jpg)
+![](images/containers.jpg)
 
 ## Managing Container Instantiation
 

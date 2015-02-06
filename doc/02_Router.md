@@ -87,16 +87,6 @@ upstream auth_servers {
 {{end}}
 }
 
-upstream web_servers {
-{{range lsdir "/web"}}  
-    {{ $addr := printf "/web/%s/port/80/tcp/addr" . }}
-    {{ $port := printf "/web/%s/port/80/tcp/port" . }}
-    {{ if exists $addr }}
-        server {{getv $addr}}:{{getv $port}};
-    {{end}}
-{{end}}
-}
-
 ... remainder excluded for clarity ...
 ```
 
