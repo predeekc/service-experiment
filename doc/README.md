@@ -17,7 +17,7 @@ To build the book, run `make` and two files **service-experiment.epub** and **se
 
 ## Table of Contents
 
-* [Introduction](00_Introduction/content.md)
-* [Container Layout](01_ContainerLayout/content.md)
-* [Router](02_Router/content.md)
-* [Developing in Isolation](03_DevelopingInIsolation/content.md)
+* [Introduction](00_Introduction.md)
+* [Container Layout](01_ContainerLayout.md)
+* [Router](02_Router.md)
+* [Developing in Isolation](03_DevelopingInIsolation.md)
