@@ -1,11 +1,54 @@
 # Container Layout
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis non libero feugiat eros bibendum mattis. Quisque sodales dictum sem non molestie. Mauris sed elit ut ligula sagittis gravida. Phasellus porttitor fringilla semper. Quisque metus augue, vestibulum eu dolor sed, sagittis porta massa. Aliquam pretium ipsum sed justo scelerisque ultrices. Phasellus vel enim nec augue viverra auctor ac nec massa. Nunc fermentum rhoncus sem eget fringilla. Vivamus sollicitudin elit dapibus libero mollis, vitae tristique justo finibus. In ante tellus, condimentum ut maximus sed, vulputate vel metus. Proin felis augue, rhoncus vitae turpis ut, lobortis ullamcorper est. Pellentesque fringilla sapien sit amet placerat bibendum.
+This sample is made up of two key services, the website and the OAuth2 server, which are supported by a router and session store service.  Incoming requests are sent to the router, which routes to either the website or the OAuth2 server based on the host name.  This creates a system with a single external access point that can theoretically delegate to a set of website or OAuth2 server instances.  
 
-Praesent at tempor mi, vitae fringilla magna. Maecenas tempor lorem sapien, quis interdum dui aliquam vel. Suspendisse vel convallis massa, ac vulputate felis. Phasellus ultrices consectetur nisi in facilisis. Ut viverra enim at velit lobortis, a imperdiet odio vehicula. Curabitur nec accumsan erat, ultrices mollis neque. Nam nisl ipsum, volutpat at ligula a, sollicitudin laoreet magna. Integer venenatis aliquet augue nec commodo. Suspendisse dapibus mollis nulla nec pellentesque. Ut sit amet nulla accumsan, tempus ipsum nec, mollis est. Morbi neque magna, dapibus eget dolor vitae, finibus suscipit erat. Praesent arcu erat, interdum in commodo eu, congue at neque. Mauris dignissim tristique orci, et porta elit mollis id. Praesent dui ligula, accumsan a ligula et, lacinia luctus neque. Proin lobortis pulvinar lacus vel ullamcorper. Sed quis enim lobortis, cursus turpis eu, pulvinar leo.
+Login is handled using the OAuth2 protocol.  When a request is made to the website and the user is not logged in, they are redirected to the OAuth 2 server to begin a request for an access token using the [Authorization Code Flow](https://www.digitalocean.com/community/tutorials/an-introduction-to-oauth-2).  This requires that user authenticate on the OAuth2 server which sends a code back to the website.  The website then requests an access token from the OAuth2 server which is then used to read the user's profile.  From this point on the profile is stored in the website's session to avoid the need to repeat the authorization flow.
 
-Praesent vitae fringilla ligula. Proin sodales enim quis nunc maximus, ac imperdiet odio accumsan. Integer at arcu urna. Fusce nisi eros, tincidunt eu vehicula et, hendrerit et leo. Aenean sed vehicula lorem. Maecenas porttitor quam at purus fringilla placerat. Fusce finibus faucibus velit, id congue orci sagittis ac. Vivamus dictum elementum ipsum vitae gravida. Sed odio enim, viverra nec aliquet eget, efficitur non quam. Donec eleifend bibendum elit, fermentum condimentum ligula iaculis ac.
+Since there is the possibility of multiple website or OAuth2 server instances, a shared session store is needed.  In this sample Redis is used in it's own container.
 
-Proin non tortor nulla. Sed rutrum fringilla diam at interdum. Nunc quis tristique magna. Mauris commodo scelerisque purus ut gravida. Nunc euismod non erat eget dignissim. Praesent quis consequat odio. Nam varius diam feugiat mi ornare tincidunt at at nibh. Aliquam dictum arcu eget dolor luctus, sit amet mattis nulla molestie. Suspendisse sed efficitur justo. Donec suscipit ex non enim tristique faucibus. Integer blandit efficitur ante, ac iaculis urna faucibus eget. Proin metus elit, lobortis sit amet consequat ac, egestas et ligula. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Nullam pulvinar sapien in eleifend porttitor. Pellentesque vitae laoreet nibh. Vivamus nisi diam, tincidunt id bibendum eget, mollis ac tortor.
+![Container Relationships](containers.jpg)
 
-Aenean nec eros maximus, sodales tellus nec, pellentesque nisl. Maecenas consectetur neque eget nisi suscipit dapibus. Ut faucibus sapien mauris, vitae suscipit sem mollis vitae. Nunc facilisis porta pharetra. Quisque lobortis finibus aliquet. Ut erat felis, venenatis nec nisi id, bibendum fermentum felis. Vivamus maximus, turpis vel commodo dapibus, nunc diam elementum enim, vel egestas erat lorem non ex. Ut pulvinar nibh a erat bibendum, in sagittis lacus porta. Maecenas lacinia erat mi, quis pretium lectus tincidunt vitae. Aliquam posuere ultricies quam sed pharetra. Quisque id risus erat. Duis quis velit sed lorem laoreet suscipit. Pellentesque convallis elit dolor, a condimentum lorem rutrum a. Praesent at iaculis ligula, ut aliquet mauris. Ut sed purus vel leo elementum egestas. Nam in dui metus.
+## Managing Container Instantiation
+
+Since we have multiple docker containers to be created for our system to work successfully, running them from the command line using the `docker` command would be tedious and error prone.  To script this a tool called [Fig](http://www.fig.sh) is used.  Fig uses a config file to define a list of containers to create and link together to create the system.
+
+```yaml
+router:
+  build: ../router
+  ports:    
+    - "443:443"
+  links:
+    - "auth"
+    - "web"    
+sessionstore:
+  image: redis
+  ports:
+    - "6379:6379"  
+auth:
+  build: ../auth-server
+  links:
+    - "sessionstore:sessionstore"
+  environment:
+    PORT: 80
+web:
+  build: ../web
+  links:
+    - "auth:auth.sample.local"
+    - "sessionstore:sessionstore"
+  environment:
+    PORT: 80
+    AUTH_URL: "https://auth.sample.local/dialog/authorize"
+    TOKEN_URL: "http://auth.sample.local/oauth/token"
+    CALLBACK_URL: "https://www.sample.local/auth/login/callback"
+    PROFILE_URL: "http://auth.sample.local/api/userinfo"
+```
+
+This configuration creates 4 docker instances.  The router section defines a router that's exposed to the host through port 443 for HTTPS communication.  This is the only container that's connected to the outside world.  The rest of the communication happens within docker's private network.  The router needs to communicate with the website and OAuth2 server containers, so the fig.yml file defines these relationships in the **links** section of the file.  When fig starts the container instances, the IP addresses of the web and auth containers will be injected into the /etc/hosts file as well as environment variables for the services to use.
+
+The next container to start is the session store.  It's being exposed to the host via port 6379 so it can be accessed from the host for inspection purposes only.
+
+The auth container is linked to this session store using a docker link that enters the IP address into the containers environment variables list.  **I'd like to just use the /etc/hosts file entry, but this would require me to force the developers to make the same entry in their /etc/hosts file to effectively develop.  This is discussed more in the section of developing services.**
+
+The web container is the most complicated configuration since it needs the OAuth2 server locations to be configured and it needs to be linked to the auth container.  This leads to two problems.  The first is that by connecting to the container directly, we're limited to a single OAuth2 server, or we'll need a load balancer between the website and the OAuth2 server instances.  The second is that since we're talking directly to the OAuth2 server and the router is our HTTPS terminator, the protocol when connecting directly to the OAuth2 server is HTTP, not HTTPS.  This leads to the need to define all of the OAuth2 parameters manually in environment variables.
+
+**I suspect that the better solution to this problem is to think of the website and OAuth2 servers separately and isolate them behind multiple routers (or no router when developing)**
